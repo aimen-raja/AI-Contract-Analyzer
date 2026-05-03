@@ -1,3 +1,4 @@
+![Workflow](Workflow.PNG)
 #  AI Contract Analyzer + Decision System
 
 An automated AI-powered contract risk analysis system built with n8n.
