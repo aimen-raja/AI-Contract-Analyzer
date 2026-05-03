@@ -1,0 +1,789 @@
+{
+  "name": "AI Contract Analyzer + Decision System",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1bLIPPfpyrVAFvlHnJT5X50VBkuA5K1D9",
+          "mode": "list",
+          "cachedResultName": "Contracts",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1bLIPPfpyrVAFvlHnJT5X50VBkuA5K1D9"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -48
+      ],
+      "id": "16fa3312-f955-4916-9754-4bba5cce66d9",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "JKL2vJC4jlsvueRS",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1ZS9pe0-VET7UMc8uccGCL69ccXOzpCkf",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -32,
+        -48
+      ],
+      "id": "0299fa72-7056-4723-a500-d9ae1b9d29aa",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "JKL2vJC4jlsvueRS",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        176,
+        -48
+      ],
+      "id": "ba95555f-de3f-4738-8bd8-88edc8786f63",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this contract and extract risks:\n\n{{$json.text}}",
+        "options": {
+          "systemMessage": "You are a contract risk analysis expert.\n\nYou MUST analyze the contract and return:\n- risk score between 0–20\n- priority (HIGH if score >= 10 else NORMAL)\n- structured JSON output only\n\nHigh risk = 15–20\nMedium risk = 5–14\nLow risk = 0–4"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        384,
+        -48
+      ],
+      "id": "ffae2b9f-192a-4d19-8d8b-7325ad45e996",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        256,
+        160
+      ],
+      "id": "f9a0cd2d-5b33-4fe9-98bb-c66694ff3283",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aF6et2SIPsEQ9eSZ",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $json.output;\nif (typeof raw === \"string\") {\n  raw = raw.replace(/```json|```/g, '').trim();\n}\n\nlet data;\ntry {\n  data = typeof raw === \"string\" ? JSON.parse(raw) : raw;\n} catch (e) {\n  data = $json;\n}\n\nconst risks = data.risks || [];\n\nconst high = risks.filter(r => r.severity === 'High');\nconst medium = risks.filter(r => r.severity === 'Medium');\nconst low = risks.filter(r => r.severity === 'Low');\n\nfunction formatRisks(arr) {\n  if (!arr.length) return \"None identified\";\n  return arr.map(r => `• *${r.clause}*: ${r.description}`).join(\"\\n\");\n}\nreturn [{\n  json: {\n    score: data.risk_score || 0,\n    priority: data.priority || \"NORMAL\",\n    summary: `This contract has ${risks.length} risks identified.`,\n    high_risks_text: formatRisks(high),\n    medium_risks_text: formatRisks(medium),\n    low_risks_text: formatRisks(low)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -32
+      ],
+      "id": "03a3c2d0-11af-4a30-a1c6-4f1074558aad",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1VuoBtAWFrNTn-BZWlLbpM2BH3Eh9uUOsCs5dpdXLHKw",
+          "mode": "list",
+          "cachedResultName": "Contract Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1VuoBtAWFrNTn-BZWlLbpM2BH3Eh9uUOsCs5dpdXLHKw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1VuoBtAWFrNTn-BZWlLbpM2BH3Eh9uUOsCs5dpdXLHKw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{$now}}",
+            "High Risk Count": "={{$json.high_risks?.length || 0}}",
+            "Medium Risk Count": "={{$json.medium_risks?.length || 0}}",
+            "Summary": "={{ $('Code in JavaScript').item.json.summary }}",
+            "Priority": "={{ $('Code in JavaScript').item.json.priority }}",
+            "Risk Score": "={{ $('Code in JavaScript').item.json.score }}",
+            "Contract Name": "={{ $('Google Drive Trigger').item.json.name }}",
+            "Decision": "={{$json.priority === 'HIGH' ? 'REVIEW' : 'APPROVE'}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Contract Name",
+              "displayName": "Contract Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk Score",
+              "displayName": "Risk Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "High Risk Count",
+              "displayName": "High Risk Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Medium Risk Count",
+              "displayName": "Medium Risk Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        144
+      ],
+      "id": "b5db08c5-6945-49d0-bd82-b373cea077ef",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vNbWJnQ24sW6C2Ke",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8a0e6f89-ef9a-48b5-8f9b-dc949d311fb9",
+              "leftValue": "={{$json.score}}",
+              "rightValue": 10,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        944,
+        -32
+      ],
+      "id": "348d2092-0a9c-4f50-89da-5459884b4c5d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B0T4W2JGP",
+          "mode": "list",
+          "cachedResultName": "all-contract"
+        },
+        "message": "=Contract Analysis Result\n\n⚠️ Score: {{ $json.score }}\n🚨 Priority: {{ $json.priority }}\n\n🧠 Summary:\n{{ $json.summary }}\n\n❗ High Risks:\n{{ $json.high_risks_text }}\n\n❗ Medium Risks:\n{{ $json.medium_risks_text }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1168,
+        -48
+      ],
+      "id": "c7e46f92-d618-4b7e-91c7-4a91f054b352",
+      "name": "Send message and wait for response",
+      "webhookId": "1c7efa98-0216-4592-b390-faa3a49c83d8",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "m2H8I2SHisl0LWLU",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8a0e6f89-ef9a-48b5-8f9b-dc949d311fb9",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1424,
+        -48
+      ],
+      "id": "110762d3-78ac-483e-a055-db009a239e71",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag",
+          "mode": "list",
+          "cachedResultName": "Contract Audit Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Contract Name": "={{ $('Google Drive Trigger').item.json.name }}",
+            "Score": "={{ $('Code in JavaScript').item.json.score }}",
+            "Priority": "={{ $('Code in JavaScript').item.json.priority }}",
+            "Summary": "={{ $('Code in JavaScript').item.json.summary }}",
+            "Decision": "APPROVED",
+            "Decided At": "={{ new Date().toISOString() }}",
+            "Email": "aimenraja263@gmail.com"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Contract Name",
+              "displayName": "Contract Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decided At",
+              "displayName": "Decided At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1632,
+        -144
+      ],
+      "id": "59beebb7-da72-4c54-9f83-23f217f6f333",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vNbWJnQ24sW6C2Ke",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag",
+          "mode": "list",
+          "cachedResultName": "Contract Audit Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1q5x245rBGKbgF2QAIQT0qjIhsMWfL7l9P2qIVm-PWag/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Contract Name": "={{ $('Google Drive Trigger').item.json.name }}",
+            "Score": "={{ $('Code in JavaScript').item.json.score }}",
+            "Priority": "={{ $('Code in JavaScript').item.json.priority }}",
+            "Summary": "={{ $('Code in JavaScript').item.json.summary }}",
+            "Decision": "REJECTED",
+            "Decided At": "={{ new Date().toISOString() }}",
+            "Email": "aimenraja263@gmail.com"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Contract Name",
+              "displayName": "Contract Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decided At",
+              "displayName": "Decided At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1632,
+        48
+      ],
+      "id": "d733fda9-031e-4751-923b-782fb37a62de",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vNbWJnQ24sW6C2Ke",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "aimenraja263@gmail.com",
+        "subject": "Contract REJECTED ❌",
+        "emailType": "text",
+        "message": "=Contract is rejected !\n\nScore: {{ $('Code in JavaScript').item.json.score }}\n\nPriority: {{ $('Code in JavaScript').item.json.priority }}\n\nSummary: {{ $('Code in JavaScript').item.json.summary }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        48
+      ],
+      "id": "013ae56c-c8d7-48cb-9cd9-3b74376758c5",
+      "name": "Send a message",
+      "webhookId": "d696329c-e01b-402d-85fa-fdb20e660d92",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jMJptR2NzEgN4qE0",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "aimenraja263@gmail.com",
+        "subject": "Contract APPROVED ✅",
+        "emailType": "text",
+        "message": "=Message:\nContract approved !\n\nScore: {{ $('Code in JavaScript').item.json.score }}\n\nPriority: {{ $('Code in JavaScript').item.json.priority }}\n\nSummary: {{ $('Code in JavaScript').item.json.summary }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1840,
+        -144
+      ],
+      "id": "e60c6d80-de53-425c-ba4d-eb3c610b50c5",
+      "name": "Send a message1",
+      "webhookId": "ab3a2ca6-0bcb-4ba0-ba2a-2793079741ae",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jMJptR2NzEgN4qE0",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d20b9616-347d-4c6f-91ad-6cc32b9f61e5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "037e88a2f1f320f426261e997c3e477b48ca3e00a3bc02e04aef785b2593c7b4"
+  },
+  "id": "jiU7a6HgbLdWEVX0",
+  "tags": []
+}
